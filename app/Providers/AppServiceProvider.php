@@ -6,12 +6,16 @@ use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
+
     public function register(): void
     {
-        //
+        $this->app->singleton(ScraperFactory::class, function($app){
+            return new ScraperFactory();
+        });
+
+        $this->app->singleton(JobScrapingService::class, function($app){
+            return new JobScrapingService($app->make(ScraperFactory::class));
+        });
     }
 
     /**

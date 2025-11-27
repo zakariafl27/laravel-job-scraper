@@ -39,9 +39,40 @@ class JobController extends Controller
             $query->where('created_at', '<=', $request->to_date);
         }
 
-        
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortOrder = $request->get('sort_order', 'desc');
+        $query->orderBy($sortBy, $sortOrder);
 
+        $jobs = $query->paginate($request->get('per_page', 15));
 
-        
+        return response()->json([
+            'success' => true,
+            'data' => $jobs,
+        ]);
+    }
+
+    public function show(Job $job): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'data' => $job,
+        ]);
+    }
+
+    public function statisctics(): JsonResponse
+    {
+        $stats = [
+            'total_jobs' => Job::count(),
+            'jobs_today' => Job::whereDate('created_at', today())->count(),
+            'jobs_this_week' => Job::whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])->count(),
+            'jobs_by_source' => Job::selectRaw('source, COUNT(*) as count')->groupBy('source')
+                ->pluck('count', 'source'),
+            'recent_jobs' => Job::latest()->limit(10)->get(),
+        ];
+
+        return response()->json([
+            'success' => true,
+            'data' => $stats,
+        ]);
     }
 }
