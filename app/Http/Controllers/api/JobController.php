@@ -3,47 +3,56 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\Job;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class JobController extends Controller
 {
+    /**
+     * Display a listing of jobs.
+     */
     public function index(Request $request): JsonResponse
     {
         $query = Job::query();
 
-        if($request->has('keyword')){
+        // Filter by keyword
+        if ($request->has('keyword')) {
             $query->byKeyword($request->keyword);
         }
 
-        if($request->has('location')){
+        // Filter by location
+        if ($request->has('location')) {
             $query->byLocation($request->location);
         }
 
-        if($request->has('sources')){
+        // Filter by source
+        if ($request->has('sources')) {
             $sources = is_array($request->sources) ? $request->sources : explode(',', $request->sources);
             $query->bySource($sources);
         }
 
-        if($request->has('job_types')){
-            $types = is_array($request->job_types) ? $request->job_types : expload(',', $request->job_types);
+        // Filter by job type
+        if ($request->has('job_types')) {
+            $types = is_array($request->job_types) ? $request->job_types : explode(',', $request->job_types);
             $query->byJobType($types);
         }
 
-        if($request->has('from_date')){
+        // Filter by date range
+        if ($request->has('from_date')) {
             $query->where('created_at', '>=', $request->from_date);
         }
 
-        if($request->has('to_date')){
+        if ($request->has('to_date')) {
             $query->where('created_at', '<=', $request->to_date);
         }
 
+        // Sort
         $sortBy = $request->get('sort_by', 'created_at');
         $sortOrder = $request->get('sort_order', 'desc');
         $query->orderBy($sortBy, $sortOrder);
 
-        $jobs = $query->paginate($request->get('per_page', 15));
+        $jobs = $query->paginate($request->get('per_page', 20));
 
         return response()->json([
             'success' => true,
@@ -51,6 +60,9 @@ class JobController extends Controller
         ]);
     }
 
+    /**
+     * Display the specified job.
+     */
     public function show(Job $job): JsonResponse
     {
         return response()->json([
@@ -59,20 +71,28 @@ class JobController extends Controller
         ]);
     }
 
-    public function statisctics(): JsonResponse
+    /**
+     * Get job statistics.
+     */
+    public function statistics(): JsonResponse
     {
-        $stats = [
-            'total_jobs' => Job::count(),
-            'jobs_today' => Job::whereDate('created_at', today())->count(),
-            'jobs_this_week' => Job::whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])->count(),
-            'jobs_by_source' => Job::selectRaw('source, COUNT(*) as count')->groupBy('source')
-                ->pluck('count', 'source'),
-            'recent_jobs' => Job::latest()->limit(10)->get(),
-        ];
+        $totalAlerts = \App\Models\JobAlert::count();
+        $activeAlerts = \App\Models\JobAlert::where('is_active', true)->count();
+        $totalJobs = Job::count();
+$newToday = Job::whereDate('created_at', now()->toDateString())->count();
+        $notificationsSent = \DB::table('alert_job')
+            ->where('is_notified', true)
+            ->count();
 
         return response()->json([
-            'success' => true,
-            'data' => $stats,
+            'total_alerts' => $totalAlerts,
+            'active_alerts' => $activeAlerts,
+            'total_jobs' => $totalJobs,
+            'new_today' => $newToday,
+            'notifications_sent' => $notificationsSent,
+            'jobs_by_source' => Job::selectRaw('source, COUNT(*) as count')
+                ->groupBy('source')
+                ->pluck('count', 'source'),
         ]);
     }
 }

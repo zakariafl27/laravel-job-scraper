@@ -50,7 +50,7 @@ abstract class BaseScraper implements ScraperInterface
             return null;
         }
     }
-
+ 
 
     protected function createCrawler(string $html): Crawler
     {
