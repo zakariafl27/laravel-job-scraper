@@ -29,7 +29,7 @@ class JobAlertController extends Controller
         }
 
         $alerts = $query->with(['jobs' => function ($q) {
-            $q->orderBy('jobs.created_at', 'desc')->limit(5);
+            $q->orderBy('job_listings.created_at', 'desc')->limit(5);
         }])->paginate(15);
 
         return response()->json($alerts);

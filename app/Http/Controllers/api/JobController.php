@@ -79,7 +79,12 @@ class JobController extends Controller
         $totalAlerts = \App\Models\JobAlert::count();
         $activeAlerts = \App\Models\JobAlert::where('is_active', true)->count();
         $totalJobs = Job::count();
-$newToday = Job::whereDate('created_at', now()->toDateString())->count();
+        // Count jobs created today - using Carbon to avoid PostgreSQL casting issues
+        $newToday = Job::where('created_at', '>=', now()->startOfDay())
+            ->where('created_at', '<=', now()->endOfDay())
+            ->count();
+        
+        // Count notifications sent (jobs that have been notified)
         $notificationsSent = \DB::table('alert_job')
             ->where('is_notified', true)
             ->count();

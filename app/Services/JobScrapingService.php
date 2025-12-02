@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Job;
 use App\Models\JobAlert;
 use App\Services\Scrapers\ScraperFactory;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class JobScrapingService
@@ -19,111 +18,71 @@ class JobScrapingService
 
     public function scrapeForAlert(JobAlert $alert): array
     {
-        $allJobs = [];
-        $source = $alert->getSourcesToScrape();
+        $newJobs = [];
+        
+        // Get sources from alert
+        $sources = $alert->getSourcesToScrape();
 
         Log::info("Starting scrape for alert", [
             'alert_id' => $alert->id,
             'keyword' => $alert->keyword,
-            'source' => $source,
+            'sources' => $sources,
         ]);
 
-        foreach ($sources as $source){
-            try{
+        foreach ($sources as $source) {
+            try {
                 $scraper = $this->scraperFactory->getScraper($source);
                 $jobs = $scraper->scrape($alert->keyword, $alert->location);
 
-                $jobs = $this->filterJobs($jobs, $alert);
-                $allJobs = array_merge($allJobs, $jobs);
-            } catch(\Exception $e){
-                Log::error("Error scraping from {$source}",[
+                foreach ($jobs as $jobData) {
+                    $job = $this->saveJob($jobData);
+                    
+                    if ($job->wasRecentlyCreated) {
+                        $newJobs[] = $job;
+                        
+                        // Link job to alert
+                        $alert->jobs()->syncWithoutDetaching([
+                            $job->id => [
+                                'is_notified' => false,
+                                'notified_at' => null
+                            ]
+                        ]);
+                    }
+                }
+
+                Log::info("Scraped jobs from source", [
+                    'source' => $source,
+                    'count' => count($jobs),
+                ]);
+            } catch (\Exception $e) {
+                Log::error("Error scraping from source", [
+                    'source' => $source,
                     'error' => $e->getMessage(),
-                    'alert_id' => $alert->id,
                 ]);
             }
         }
-
-        $newJobs = $this->saveJobs($allJobs, $alert);
 
         $alert->update(['last_scraped_at' => now()]);
-        Log::info("Scrape completed for alert", [
-            'alert_id' => $alert->id,
-            'total_jobs' => count($allJobs),
-            'new_jobs' => count($newJobs),
-        ]);
 
         return $newJobs;
     }
 
-    public function scrapeAllAlerts(): void
+    private function saveJob(array $data): Job
     {
-        $alerts = JobAlert::where('is_active', true)->get();
-
-        foreach($alerts as $alert){
-            try{
-                $this->scrapeForAlert($alert);
-            } catch(\Exception $e){
-                Log::error("Error processing alert", [
-                    'alert_id' => $alert->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-    }
-
-    private function filterJobs(array $jobs, JobAlert $alert): array
-    {
-        return array_filter($jobs, function ($job) use ($alert){
-            if(!empty($alert->job_types) && $job['job_type']){
-                if(!in_array(strtolower($job['job_type']), array_map('strtolower', $alert->job_types))){
-                    return false;
-                }
-            }
-            return true;
-        });
-    }
-
-    private function saveJobs(array $jobs, JobAlert $alert): array
-    {
-        $newJobs = []; 
-        $maxJobs = config('scraper.max_jobs_per_alert', 50);
-        $count = 0;
-
-        foreach ($jobs as $jobData){
-            if($count >= $maxJobs){
-                break;
-            }
-
-            try{
-                DB::beginTransaction();
-
-                $job = Job::where('source_id', $jobData['source_id'])->first();
-                if(!$job){
-                    $job = Job::create($jobData);
-                }
-
-                $exists = $alert->jobs()->where('job_id', $job->id)->exists();
-
-                if(!$exists){
-                    $alert->jobs()->attach($job->id, [
-                        'is_notified' => false,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
-                    $newJobs[] = $job;
-                    $count++;
-                }
-                
-                DB::commit();
-            } catch(\Exception $e){
-                DB::rollBack();
-                Log::error("Error saving job", [
-                    'error' => $e->getMessage(),
-                    'job' => $jobData,
-                ]);
-            }
-        }
-
-        return $newJobs;
+        return Job::updateOrCreate(
+            ['source_id' => $data['source_id']],
+            [
+                'title' => $data['title'],
+                'company' => $data['company'],
+                'description' => $data['description'] ?? null,
+                'location' => $data['location'],
+                'job_type' => $data['job_type'] ?? null,
+                'source' => $data['source'],
+                'url' => $data['url'],
+                'salary' => $data['salary'] ?? null,
+                'posted_date' => $data['posted_date'] ?? now(),
+                'deadline' => $data['deadline'] ?? null,
+            ]
+        );
     }
 }
