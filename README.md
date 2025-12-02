@@ -2,8 +2,7 @@
 
 Automated job scraper for Moroccan job boards with FREE WhatsApp notifications using Baileys API.
 
-![GitHub stars](https://img.shields.io/github/stars/zakariafl27/laravel-job-scraper-morocco?style=social)
-![GitHub forks](https://img.shields.io/github/forks/zakariafl27/laravel-job-scraper-morocco?style=social)
+
 [![Laravel](https://img.shields.io/badge/Laravel-12.x-red.svg)](https://laravel.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-blue.svg)](https://www.postgresql.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -109,7 +108,7 @@ Add to crontab for automatic job scraping:
   </tr>
   <tr>
     <td align="center"><b>Frontend</b></td>
-    <td>Tailwind CSS, Alpine.js</td>
+    <td>Tailwind CSS</td>
   </tr>
   <tr>
     <td align="center"><b>Queue</b></td>
