@@ -2,14 +2,18 @@
 
 namespace App\Services;
 
+use App\Models\JobAlert;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+
 class WhatsAppService
 {
-
- private string $baileysUrl;
+    private string $baileysUrl;
 
     public function __construct()
     {
-        $this->baileysUrl = config('whatsapp.baileys_url', 'http://localhost:3000');
+        $this->baileysUrl = env('WHATSAPP_NODE_SERVER', 'http://localhost:3000');
     }
 
     public function sendJobNotifications(JobAlert $alert, Collection $jobs): bool
@@ -23,7 +27,15 @@ class WhatsAppService
         $result = $this->sendMessage($alert->user_phone, $message);
 
         if($result){
-            $alert->markJobsAsNotified($jobs->pluck('id')->toArray());
+            $jobIds = $jobs->pluck('id')->toArray();
+            $alert->jobs()->syncWithoutDetaching(
+                collect($jobIds)->mapWithKeys(fn($id) => [
+                    $id => [
+                        'is_notified' => true,
+                        'notified_at' => now()
+                    ]
+                ])->toArray()
+            );
 
             Log::info("WhatsApp notification sent", [
                 'alert_id' => $alert->id,
@@ -39,6 +51,12 @@ class WhatsAppService
         $message = "New job alert for keyword: {$alert->keyword}\n";
         $message .= "Hello {$alert->user_name}\n";
         $message .= "We found {$jobs->count()} new jobs for your alert\n";
+        
+        if ($alert->location) {
+            $message .= "Location: {$alert->location}\n";
+        }
+        
+        $message .= "\n";
         
         foreach($jobs as $index => $job){
             $message .= $this->formatJobForMessage($job, $index + 1);
@@ -81,7 +99,6 @@ class WhatsAppService
     private function sendMessage(string $phone, string $message): bool
     {
         try {
-            // Format phone number for Baileys
             $phone = $this->formatPhoneNumber($phone);
             
             $response = Http::timeout(30)->post("{$this->baileysUrl}/send-message", [
@@ -111,19 +128,37 @@ class WhatsAppService
 
     private function formatPhoneNumber(string $phone): string
     {
-        $phone = preg_replace('/[^0-9]/', '', $phone);
+        $phone = preg_replace('/[^0-9+]/', '', $phone);
         
-        if (!str_starts_with($phone, '212')) {
-            $phone = ltrim($phone, '0');
+        if (str_starts_with($phone, '+212')) {
+            $phone = substr($phone, 1);
+        } elseif (str_starts_with($phone, '0')) {
+            $phone = '212' . substr($phone, 1);
+        } elseif (!str_starts_with($phone, '212')) {
             $phone = '212' . $phone;
         }
         
-        return $phone;
+        return '+' . $phone;
     }
 
     public function testConnection(string $phone): bool
     {
         $testMessage = "Test de connexion WhatsApp (Baileys FREE) - Moroccan Job Scraper";
         return $this->sendMessage($phone, $testMessage);
+    }
+
+    public function isAvailable(): bool
+    {
+        try {
+            $response = Http::timeout(5)->get("{$this->baileysUrl}/health");
+            return $response->successful();
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    public function sendTestMessage(string $phone): bool
+    {
+        return $this->testConnection($phone);
     }
 }

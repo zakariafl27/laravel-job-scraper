@@ -201,6 +201,28 @@
                     <p>No jobs scraped yet. Create an alert to start!</p>
                 </div>
             </div>
+
+            <!-- Pagination -->
+            <nav class="flex items-center justify-between border-t border-gray-200 pt-4 mt-6" id="pagination" style="display: none;">
+                <div class="flex-1 flex justify-between sm:hidden">
+                    <button id="prev-mobile" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        Previous
+                    </button>
+                    <button id="next-mobile" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        Next
+                    </button>
+                </div>
+                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-sm text-gray-700">
+                            Showing <span id="from">0</span> to <span id="to">0</span> of <span id="total">0</span> results
+                        </p>
+                    </div>
+                    <div>
+                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" id="page-numbers"></nav>
+                    </div>
+                </div>
+            </nav>
         </div>
 
     </main>
@@ -218,6 +240,7 @@
     <script>
         // API Base URL
         const API_URL = '/api/v1';
+        let currentPage = 1;
 
         // Load Statistics
         async function loadStatistics() {
@@ -276,13 +299,14 @@
             }
         }
 
-        // Load Recent Jobs
-        async function loadRecentJobs() {
+        // Load Recent Jobs with Pagination
+        async function loadRecentJobs(page = 1) {
             try {
-                const response = await fetch(`${API_URL}/jobs?limit=10`);
+                const response = await fetch(`${API_URL}/jobs?page=${page}`);
                 const data = await response.json();
                 
                 const jobsList = document.getElementById('jobs-list');
+                const pagination = document.getElementById('pagination');
                 
                 if (data.data && data.data.length > 0) {
                     jobsList.innerHTML = data.data.map(job => `
@@ -311,12 +335,71 @@
                             </div>
                         </div>
                     `).join('');
+
+                    // Show pagination if more than 1 page
+                    if (data.last_page > 1) {
+                        pagination.style.display = 'flex';
+                        updatePagination(data);
+                    } else {
+                        pagination.style.display = 'none';
+                    }
                 } else {
                     jobsList.innerHTML = '<div class="text-center py-8 text-gray-500"><p>No jobs scraped yet. Create an alert to start!</p></div>';
+                    pagination.style.display = 'none';
                 }
             } catch (error) {
                 console.error('Error loading jobs:', error);
             }
+        }
+
+        function updatePagination(data) {
+            currentPage = data.current_page;
+            
+            document.getElementById('from').textContent = data.from || 0;
+            document.getElementById('to').textContent = data.to || 0;
+            document.getElementById('total').textContent = data.total || 0;
+            
+            const prevMobile = document.getElementById('prev-mobile');
+            const nextMobile = document.getElementById('next-mobile');
+            
+            prevMobile.disabled = data.current_page === 1;
+            prevMobile.onclick = () => loadRecentJobs(data.current_page - 1);
+            
+            nextMobile.disabled = data.current_page === data.last_page;
+            nextMobile.onclick = () => loadRecentJobs(data.current_page + 1);
+            
+            const pageNumbers = document.getElementById('page-numbers');
+            let html = '';
+            
+            html += `
+                <button onclick="loadRecentJobs(${data.current_page - 1})" 
+                        ${data.current_page === 1 ? 'disabled' : ''}
+                        class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50">
+                    Previous
+                </button>
+            `;
+            
+            const start = Math.max(1, data.current_page - 2);
+            const end = Math.min(data.last_page, data.current_page + 2);
+            
+            for (let i = start; i <= end; i++) {
+                html += `
+                    <button onclick="loadRecentJobs(${i})"
+                            class="relative inline-flex items-center px-4 py-2 border text-sm font-medium ${i === data.current_page ? 'z-10 bg-blue-50 border-blue-500 text-blue-600' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}">
+                        ${i}
+                    </button>
+                `;
+            }
+            
+            html += `
+                <button onclick="loadRecentJobs(${data.current_page + 1})"
+                        ${data.current_page === data.last_page ? 'disabled' : ''}
+                        class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50">
+                    Next
+                </button>
+            `;
+            
+            pageNumbers.innerHTML = html;
         }
 
         // Create Alert
@@ -359,6 +442,7 @@
                     // Reload data
                     loadStatistics();
                     loadAlerts();
+                    loadRecentJobs(1);
                     
                     // Hide message after 5 seconds
                     setTimeout(() => {
@@ -405,13 +489,12 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadStatistics();
             loadAlerts();
-            loadRecentJobs();
+            loadRecentJobs(1);
             
             // Refresh data every 30 seconds
             setInterval(() => {
                 loadStatistics();
                 loadAlerts();
-                loadRecentJobs();
             }, 30000);
         });
     </script>
