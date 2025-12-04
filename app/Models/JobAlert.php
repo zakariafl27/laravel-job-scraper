@@ -4,28 +4,25 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class JobAlert extends Model
 {
     use HasFactory;
 
-    protected $fillable =[
+    protected $table = 'job_alerts';
+
+    protected $fillable = [
         'user_name',
         'user_email',
         'user_phone',
         'keyword',
         'location',
-        'job_type',
+        'job_types',
         'sources',
         'is_active',
         'last_scraped_at',
     ];
 
-
-    /**
-     * how the data will be automatically converted
-     */
     protected $casts = [
         'job_types' => 'array',
         'sources' => 'array',
@@ -34,45 +31,37 @@ class JobAlert extends Model
     ];
 
     /**
-     * many-to-many relationship between JobAlert and Job models
+     * Get jobs for this alert
      */
-    public function jobs(): BelongsToMany
+    public function jobs()
     {
         return $this->belongsToMany(Job::class, 'alert_job')
-        ->withPivot('is_notified', 'notified_at')
-        ->withTimestamps();
+            ->withPivot('is_notified', 'notified_at')
+            ->withTimestamps();
     }
 
     /**
-     * scope to get the new jobs
+     * Get new jobs that haven't been notified
      */
     public function newJobs()
     {
-        return $this->Jobs()
-        ->wherePivot('is_notified', false)
-        ->orderBy('jobs.created_at', 'desc');
+        return $this->jobs()->wherePivot('is_notified', false);
     }
 
     /**
-     * method to get the sources to scrape
+     * Get sources to scrape from
      */
     public function getSourcesToScrape(): array
     {
-        return $this->sources ?? ['rekrute', 'emploi', 'mjob', 'marocannonce'];
+        return $this->sources ?? ['adzuna'];
     }
-
 
     /**
-     * method to mark the jobs as notified
+     * Check if should scrape from a source
      */
-    public function markJobsAsNotified(array $jobIds): void
+    public function shouldScrapeFrom(string $source): bool
     {
-        $this->jobs()->whereIn('job_id', $jobIds)
-        ->update([
-            'is_notified' => true,
-            'notified_at' => now(),
-        ]);
+        $sources = $this->getSourcesToScrape();
+        return in_array($source, $sources);
     }
-
-
 }

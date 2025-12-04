@@ -26,6 +26,7 @@ class JobScrapingService
         Log::info("Starting job search", [
             'alert_id' => $alert->id, 
             'keyword' => $alert->keyword,
+            'job_types' => $alert->job_types
         ]);
 
         if (empty($this->appId) || empty($this->appKey)) {
@@ -38,7 +39,16 @@ class JobScrapingService
             
             Log::info("Adzuna returned jobs", ['count' => count($jobs)]);
             
+            // Get user selected job types
+            $selectedJobTypes = $alert->job_types ?? [];
+            
             foreach ($jobs as $jobData) {
+                if (!empty($selectedJobTypes)) {
+                    if (!$this->matchesJobType($jobData['job_type'], $selectedJobTypes)) {
+                        continue;
+                    }
+                }
+                
                 try {
                     $job = Job::updateOrCreate(
                         ['source_id' => $jobData['source_id']],
@@ -67,9 +77,39 @@ class JobScrapingService
 
         $alert->update(['last_scraped_at' => now()]);
         
-        Log::info("Search complete", ['new_jobs' => count($newJobs)]);
+        Log::info("Search complete", [
+            'new_jobs' => count($newJobs),
+            'filtered_by_types' => !empty($selectedJobTypes)
+        ]);
         
         return $newJobs;
+    }
+
+    private function matchesJobType(string $jobType, array $selectedTypes): bool
+    {
+        $jobType = strtolower($jobType);
+        
+        foreach ($selectedTypes as $selectedType) {
+            $selectedType = strtolower($selectedType);
+            
+            // Map job types
+            $matches = [
+                'cdi' => ['cdi', 'permanent', 'full_time', 'fulltime'],
+                'cdd' => ['cdd', 'contract', 'temporary', 'temp'],
+                'stage' => ['stage', 'intern', 'internship', 'apprentice'],
+                'freelance' => ['freelance', 'contractor', 'independent']
+            ];
+            
+            if (isset($matches[$selectedType])) {
+                foreach ($matches[$selectedType] as $pattern) {
+                    if (strpos($jobType, $pattern) !== false) {
+                        return true;
+                    }
+                }
+            }
+        }
+        
+        return false;
     }
 
     private function searchAdzuna(string $keyword): array
@@ -118,12 +158,24 @@ class JobScrapingService
                 $title = mb_convert_encoding($item['title'] ?? 'Job', 'UTF-8', 'UTF-8');
                 $title = preg_replace('/[^\x{0009}\x{000a}\x{000d}\x{0020}-\x{D7FF}\x{E000}-\x{FFFD}]+/u', '', $title);
 
+                // Map contract type to job type
+                $contractType = strtolower($item['contract_type'] ?? '');
+                $jobType = 'CDI'; // Default
+                
+                if (in_array($contractType, ['permanent', 'full_time'])) {
+                    $jobType = 'CDI';
+                } elseif (in_array($contractType, ['contract', 'temporary'])) {
+                    $jobType = 'CDD';
+                } elseif (in_array($contractType, ['part_time'])) {
+                    $jobType = 'Temps partiel';
+                }
+
                 $jobs[] = [
                     'title' => $title,
                     'company' => $item['company']['display_name'] ?? 'Company',
                     'description' => $description,
                     'location' => $item['location']['display_name'] ?? 'Remote',
-                    'job_type' => 'CDI',
+                    'job_type' => $jobType,
                     'source' => 'adzuna',
                     'source_id' => 'adzuna-' . $item['id'],
                     'url' => $item['redirect_url'] ?? '#',

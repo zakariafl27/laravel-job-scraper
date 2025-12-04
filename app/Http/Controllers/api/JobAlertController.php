@@ -49,7 +49,7 @@ class JobAlertController extends Controller
             'job_types' => 'nullable|array',
             'job_types.*' => 'string',
             'sources' => 'nullable|array',
-            'sources.*' => 'in:rekrute,emploi,mjob,anapec',
+            'sources.*' => 'in:rekrute,emploi,mjob,anapec,adzuna',
         ]);
 
         if ($validator->fails()) {
@@ -59,14 +59,26 @@ class JobAlertController extends Controller
             ], 422);
         }
 
-        $alert = JobAlert::create($validator->validated());
+        $data = $validator->validated();
+        
+        // If no job types selected, set as empty array (means all types)
+        if (!isset($data['job_types']) || empty($data['job_types'])) {
+            $data['job_types'] = [];
+        }
+        
+        // Default sources
+        if (!isset($data['sources']) || empty($data['sources'])) {
+            $data['sources'] = ['adzuna'];
+        }
+
+        $alert = JobAlert::create($data);
 
         // Dispatch immediate scrape job
         ScrapeJobsForAlert::dispatch($alert);
 
         return response()->json([
             'success' => true,
-            'message' => 'Job alert created successfully',
+            'message' => 'Job alert created successfully. Scraping jobs now...',
             'data' => $alert,
         ], 201);
     }
@@ -100,7 +112,7 @@ class JobAlertController extends Controller
             'job_types' => 'nullable|array',
             'job_types.*' => 'string',
             'sources' => 'nullable|array',
-            'sources.*' => 'in:rekrute,emploi,mjob,anapec',
+            'sources.*' => 'in:rekrute,emploi,mjob,anapec,adzuna',
             'is_active' => 'sometimes|boolean',
         ]);
 
