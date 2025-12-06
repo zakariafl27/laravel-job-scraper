@@ -6,42 +6,37 @@ use InvalidArgumentException;
 
 class ScraperFactory
 {
-    private array $scrapers = [];
-
-    public function __construct()
+    public static function create(string $name): ScraperInterface
     {
-        $this->registerScrapers();
-    }
-
-    private function registerScrapers(): void
-    {
-        $this->scrapers = [
+        return match(strtolower($name)) {
             'rekrute' => new RekruteScraper(),
             'emploi' => new EmploiScraper(),
             'mjob' => new MJobScraper(),
+            'bayt' => new BaytScraper(),
+            default => throw new InvalidArgumentException("Scraper '{$name}' not found")
+        };
+    }
+
+    public static function getAllScrapers(): array
+    {
+        return [
+            'rekrute' => self::create('rekrute'),
+            'emploi' => self::create('emploi'),
+            'mjob' => self::create('mjob'),
+            'bayt' => self::create('bayt'),
         ];
     }
 
-    public function getScraper(string $name): ScraperInterface
+    public static function getScrapers(array $names): array
     {
-        if (!isset($this->scrapers[$name])){
-            throw new InvalidArgumentExeption("Scraper '{$name}' not found");
+        $scrapers = [];
+        foreach ($names as $name) {
+            try {
+                $scrapers[$name] = self::create($name);
+            } catch (InvalidArgumentException $e) {
+                // Skip
+            }
         }
-        return $this->scrapers[$name];
+        return $scrapers;
     }
-
-    public function getAllScrapers(): array
-    {
-        return $this->scrapers;
-    }
-
-    public function getScrapers(array $name): array
-    {
-        return array_filter(
-            $this->scrapers,
-            fn($key) => in_array($key, $names),
-        );
-    }
-
-    
 }
