@@ -1,199 +1,174 @@
-# Moroccan Job Scraper
+# Job Alert System
 
-Automated job scraper for Moroccan job boards with FREE WhatsApp notifications using Baileys API.
+Automated job alerts with WhatsApp notifications powered by Adzuna API.
 
-
-[![Laravel](https://img.shields.io/badge/Laravel-12.x-red.svg)](https://laravel.com)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-blue.svg)](https://www.postgresql.org/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+![Dashboard](screenshots/dashboard.png)
 
 ## Features
 
-- **Multi-Source Scraping** - Rekrute.com, Emploi.ma, M-job.ma
-- **FREE WhatsApp Notifications** - Using Baileys (no paid API)
-- **Smart Job Alerts** - Keyword, location, and job type filtering
-- **Beautiful Dashboard** - Modern Tailwind CSS interface
-- **Real-time Updates** - Auto-refresh every 30 seconds
-- **RESTful API** - Complete JSON API endpoints
-- **Queue System** - Asynchronous job processing
-- **PostgreSQL Database** - Robust database with ILIKE search
+- International job search (Adzuna API)
+- FREE WhatsApp notifications (Baileys)
+- Job filtering by keyword, location, type
+- Modern dashboard with Tailwind CSS
+- RESTful API
+- PM2 process management
+- Queue system for background jobs
 
-## Quick Start
+## Screenshots
 
-### Prerequisites
+### Dashboard
+![Dashboard](screenshots/dashboard.png)
 
-- PHP 8.3+
-- PostgreSQL 15+
-- Composer
-- Node.js (for WhatsApp)
+### Create Alert Form
+![Alert Form](screenshots/alert-form.png)
 
-### Installation
+### Jobs List
+![Jobs List](screenshots/jobs-list.png)
 
+## Installation
 ```bash
-# Clone repository
-git clone https://github.com/zakariafl27/laravel-job-scraper-morocco.git
-cd laravel-job-scraper-morocco
+git clone https://github.com/zakariafl27/laravel-job-scraper.git
+cd laravel-job-scraper
 
-# Install dependencies
 composer install
+cd whatsapp-service && npm install && cd ..
 
-# Setup environment
 cp .env.example .env
 php artisan key:generate
-
-# Configure database
-# Edit .env file with your database credentials
-
-# Run migrations
 php artisan migrate
-
-# Start server
-php artisan serve
 ```
 
-Visit: **http://localhost:8000**
+## Configuration
+
+Edit `.env` file:
+```env
+DB_CONNECTION=pgsql
+DB_DATABASE=JobScaper
+DB_USERNAME=postgres
+DB_PASSWORD=your_password
+
+ADZUNA_APP_ID=your_app_id
+ADZUNA_APP_KEY=your_app_key
+
+QUEUE_CONNECTION=database
+```
+
+Get free Adzuna API keys: [developer.adzuna.com](https://developer.adzuna.com)
 
 ## Usage
 
-### Create Job Alert
+**Start all services:**
+```bash
+pm2 start whatsapp-service/ecosystem.config.js
+pm2 save
+```
 
-**Via Dashboard:**
-1. Open http://localhost:8000
-2. Fill the form (name, email, WhatsApp, keyword)
-3. Click "Create Alert"
-4. Receive WhatsApp notifications automatically
+**Access dashboard:**
+```
+http://localhost:8000
+```
 
-**Via API:**
+**Create alert via API:**
 ```bash
 curl -X POST http://localhost:8000/api/v1/alerts \
   -H "Content-Type: application/json" \
   -d '{
-    "user_name": "John Doe",
+    "user_name": "John",
     "user_email": "john@example.com",
     "user_phone": "+212600000000",
-    "keyword": "Laravel Developer",
-    "location": "Casablanca",
-    "job_types": ["CDI"],
-    "sources": ["rekrute", "emploi", "mjob"]
+    "keyword": "Developer",
+    "location": "London",
+    "sources": ["adzuna"]
   }'
 ```
 
-### Scrape Jobs
-
+## PM2 Commands
 ```bash
-# Scrape for all active alerts
-php artisan job:score
-
-# Process queue
-php artisan queue:work
+pm2 status              # Check services
+pm2 logs                # View logs
+pm2 restart all         # Restart services
+pm2 stop all            # Stop services
 ```
 
-### Automated Scraping
+## WhatsApp Setup
 
-Add to crontab for automatic job scraping:
-```bash
-* * * * * cd /path/to/project && php artisan schedule:run >> /dev/null 2>&1
-```
+1. Start WhatsApp service
+2. Check logs for QR code: `pm2 logs whatsapp-service`
+3. Scan QR with WhatsApp on phone
+4. Connection saved in `whatsapp-service/auth_info_baileys/`
 
 ## Tech Stack
 
-<table>
-  <tr>
-    <td align="center"><b>Backend</b></td>
-    <td>Laravel 12, PHP 8.3</td>
-  </tr>
-  <tr>
-    <td align="center"><b>Database</b></td>
-    <td>PostgreSQL 15</td>
-  </tr>
-  <tr>
-    <td align="center"><b>Frontend</b></td>
-    <td>Tailwind CSS</td>
-  </tr>
-  <tr>
-    <td align="center"><b>Queue</b></td>
-    <td>Laravel Queue (Database driver)</td>
-  </tr>
-  <tr>
-    <td align="center"><b>WhatsApp</b></td>
-    <td>Baileys API (Node.js)</td>
-  </tr>
-</table>
+- **Backend:** Laravel 11, PHP 8.3
+- **Database:** PostgreSQL 15
+- **Frontend:** Tailwind CSS
+- **WhatsApp:** Baileys (Node.js)
+- **Process Manager:** PM2
+- **Job Queue:** Laravel Queue
 
 ## API Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/v1/jobs` | List all jobs (paginated) |
-| `GET` | `/api/v1/jobs/{id}` | Get job details |
-| `GET` | `/api/v1/jobs/statistics` | Get dashboard statistics |
-| `GET` | `/api/v1/alerts` | List all alerts |
-| `POST` | `/api/v1/alerts` | Create new alert |
-| `PUT` | `/api/v1/alerts/{id}` | Update alert |
-| `DELETE` | `/api/v1/alerts/{id}` | Delete alert |
-
-### Example Response
-
-```json
-{
-  "total_alerts": 5,
-  "active_alerts": 3,
-  "total_jobs": 152,
-  "new_today": 12,
-  "notifications_sent": 45,
-  "jobs_by_source": {
-    "rekrute": 87,
-    "emploi": 42,
-    "mjob": 23
-  }
-}
-```
+| GET | `/api/v1/jobs` | List jobs (paginated) |
+| GET | `/api/v1/jobs/{id}` | Get job details |
+| GET | `/api/v1/jobs/statistics` | Dashboard statistics |
+| GET | `/api/v1/alerts` | List all alerts |
+| POST | `/api/v1/alerts` | Create new alert |
+| PUT | `/api/v1/alerts/{id}` | Update alert |
+| DELETE | `/api/v1/alerts/{id}` | Delete alert |
 
 ## Project Structure
-
 ```
-laravel-job-scraper-morocco/
+laravel-job-scraper/
 ├── app/
-│   ├── Console/Commands/      # Artisan commands (job:score, etc.)
-│   ├── Http/Controllers/Api/  # API controllers
-│   ├── Jobs/                  # Queue jobs
-│   ├── Models/                # Eloquent models (Job, JobAlert)
-│   └── Services/              # Business logic & scrapers
-├── database/
-│   └── migrations/            # Database schema
-├── resources/
-│   └── views/                 # Blade templates (dashboard)
-├── routes/
-│   └── api.php               # API routes
-└── README.md
+│   ├── Http/Controllers/Api/
+│   ├── Jobs/
+│   ├── Models/
+│   └── Services/Scrapers/
+├── whatsapp-service/
+│   ├── server.js
+│   └── ecosystem.config.js
+├── screenshots/
+│   ├── dashboard.png
+│   ├── alert-form.png
+│   └── jobs-list.png
+├── database/migrations/
+├── resources/views/
+└── routes/api.php
 ```
 
-## Roadmap
+## Troubleshooting
 
-- [ ] Add more job sources (LinkedIn, Indeed Morocco)
-- [ ] Email notifications support
-- [ ] Advanced filtering options
-- [ ] Job application tracking
-- [ ] Mobile app (React Native)
-- [ ] Chrome extension
+**Queue not working:**
+```bash
+pm2 restart laravel-queue
+php artisan queue:failed
+php artisan queue:retry all
+```
+
+**WhatsApp disconnected:**
+```bash
+pm2 restart whatsapp-service
+pm2 logs whatsapp-service  # Scan new QR
+```
+
+**Clear cache:**
+```bash
+php artisan optimize:clear
+```
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## Issues
-
-Found a bug? Have a feature request? Please open an [issue](https://github.com/zakariafl27/laravel-job-scraper-morocco/issues).
+1. Fork the repository
+2. Create feature branch
+3. Commit changes
+4. Push to branch
+5. Open Pull Request
 
 ## License
 
-This project is open-sourced software licensed under the [MIT license](LICENSE).
+MIT License
 
 ## Author
 
@@ -201,27 +176,13 @@ This project is open-sourced software licensed under the [MIT license](LICENSE).
 - GitHub: [@zakariafl27](https://github.com/zakariafl27)
 - LinkedIn: [Zakaria FLAFI](https://www.linkedin.com/in/zakaria-flafi-410706333/)
 
-## Acknowledgments
-
-- [Laravel Framework](https://laravel.com) - The PHP framework for web artisans
-- [Baileys WhatsApp Library](https://github.com/WhiskeySockets/Baileys) - WhatsApp Web API
-- [Tailwind CSS](https://tailwindcss.com) - A utility-first CSS framework
-- Moroccan Job Boards - For providing public job listings
-
 ## Support
 
-If you find this project helpful, please consider:
-- Starring the repository
-- Reporting bugs
-- Suggesting new features
-- Contributing to the code
+If you find this project helpful:
+- Star the repository
+- Report bugs via [Issues](https://github.com/zakariafl27/laravel-job-scraper/issues)
+- Contribute improvements
 
 ---
 
-<div align="center">
-
-**Made with Love in Morocco**
-
-If you find this project useful, please give it a star!
-
-</div>
+Made in Morocco 🇲🇦
