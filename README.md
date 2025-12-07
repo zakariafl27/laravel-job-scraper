@@ -17,10 +17,10 @@ Automated job alerts with WhatsApp notifications powered by Adzuna API.
 ## Screenshots
 
 ### Dashboard
-![Dashboard](screenshots/dashboard.png)
+![Dashboard](screenshots/DashScreen.png)
 
 ### Create Alert Form
-![Alert Form](screenshots/alert-form.png)
+![Alert Form](screenshots/AlertScreen.png)
 
 ### Jobs List
 ![Jobs List](screenshots/jobs-list.png)
