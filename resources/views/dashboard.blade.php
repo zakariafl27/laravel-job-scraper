@@ -3,16 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moroccan Job Scraper</title>
+    <title>Job Scraper Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body class="bg-gray-50">
     <!-- Header -->
     <header class="bg-white shadow">
         <div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-            <h1 class="text-3xl font-bold text-gray-900">Moroccan Job Scraper</h1>
-            <p class="mt-1 text-sm text-gray-600">Free WhatsApp job alerts from Rekrute, Emploi.ma & M-job</p>
+            <h1 class="text-3xl font-bold text-gray-900">Job Scraper Dashboard</h1>
+            <p class="mt-1 text-sm text-gray-600">Free WhatsApp job alerts powered by AI</p>
         </div>
     </header>
 
@@ -22,7 +23,7 @@
         <!-- Statistics Cards -->
         <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
             <!-- Total Alerts -->
-            <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition">
                 <div class="p-5">
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
@@ -41,7 +42,7 @@
             </div>
 
             <!-- Total Jobs -->
-            <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition">
                 <div class="p-5">
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
@@ -60,7 +61,7 @@
             </div>
 
             <!-- New Jobs Today -->
-            <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition">
                 <div class="p-5">
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
@@ -79,7 +80,7 @@
             </div>
 
             <!-- Notifications Sent -->
-            <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition">
                 <div class="p-5">
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
@@ -95,6 +96,21 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- Bar Chart - Jobs by Source -->
+            <div class="bg-white shadow rounded-lg p-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">Jobs by Source</h2>
+                <div id="jobs-chart" class="w-full" style="height: 300px;"></div>
+            </div>
+
+            <!-- Line Chart - Jobs Today -->
+            <div class="bg-white shadow rounded-lg p-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">Jobs Scraped Today</h2>
+                <div id="timeline-chart" class="w-full" style="height: 300px;"></div>
             </div>
         </div>
 
@@ -141,17 +157,20 @@
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-3 py-2 border">
                     </div>
 
-                    <!-- Job Sources -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Job Sources</label>
                         <div class="space-y-2">
                             <label class="flex items-center">
-                                <input type="checkbox" name="sources[]" value="adzuna" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
+                                <input type="checkbox" name="sources[]" value="adzuna" checked class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
                                 <span class="ml-2 text-sm text-gray-700">Adzuna (International)</span>
                             </label>
                             <label class="flex items-center">
-                                <input type="checkbox" name="sources[]" value="bayt" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
-                                <span class="ml-2 text-sm text-gray-700">Bayt.com (MENA/Morocco)</span>
+                                <input type="checkbox" name="sources[]" value="marocannonces" checked class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                <span class="ml-2 text-sm text-gray-700">Marocannonces (Morocco)</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="sources[]" value="anapec" checked class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                <span class="ml-2 text-sm text-gray-700">ANAPEC (Government)</span>
                             </label>
                         </div>
                         <p class="mt-1 text-xs text-gray-500">Select at least one source</p>
@@ -207,15 +226,31 @@
 
         </div>
 
-        <!-- Recent Jobs -->
+        <!-- Recent Jobs TABLE -->
         <div class="mt-8 bg-white shadow rounded-lg p-6">
             <h2 class="text-xl font-semibold text-gray-900 mb-4">Recent Jobs</h2>
             
-            <div id="jobs-list" class="space-y-4">
-                <!-- Jobs will be loaded here -->
-                <div class="text-center py-8 text-gray-500">
-                    <p>No jobs scraped yet. Create an alert to start!</p>
-                </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200" id="jobs-table">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posted</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="jobs-tbody" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">
+                                No jobs scraped yet. Create an alert to start!
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
             <!-- Pagination -->
@@ -247,7 +282,7 @@
     <footer class="bg-white border-t mt-12">
         <div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
             <p class="text-center text-gray-500 text-sm">
-                Moroccan Job Scraper - FREE WhatsApp Notifications
+                Job Scraper - FREE WhatsApp Notifications - Powered by Adzuna, Marocannonces & ANAPEC
             </p>
         </div>
     </footer>
@@ -257,6 +292,162 @@
         // API Base URL
         const API_URL = '/api/v1';
         let currentPage = 1;
+
+        // D3.js BAR Chart - Jobs by Source
+        function drawChart(data) {
+            const container = document.getElementById('jobs-chart');
+            container.innerHTML = '';
+            
+            const margin = {top: 20, right: 30, bottom: 40, left: 60};
+            const width = container.offsetWidth - margin.left - margin.right;
+            const height = 300 - margin.top - margin.bottom;
+
+            const svg = d3.select('#jobs-chart')
+                .append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom)
+                .append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            const x = d3.scaleBand()
+                .range([0, width])
+                .domain(data.map(d => d.source))
+                .padding(0.2);
+
+            const y = d3.scaleLinear()
+                .domain([0, d3.max(data, d => d.count) || 10])
+                .range([height, 0]);
+
+            // Add bars
+            svg.selectAll('rect')
+                .data(data)
+                .enter()
+                .append('rect')
+                .attr('x', d => x(d.source))
+                .attr('y', d => y(d.count))
+                .attr('width', x.bandwidth())
+                .attr('height', d => height - y(d.count))
+                .attr('fill', d => {
+                    if (d.source === 'adzuna') return '#3B82F6';
+                    if (d.source === 'marocannonces') return '#10B981';
+                    if (d.source === 'anapec') return '#8B5CF6';
+                    return '#6B7280';
+                })
+                .attr('rx', 4);
+
+            // Add value labels
+            svg.selectAll('text.value')
+                .data(data)
+                .enter()
+                .append('text')
+                .attr('class', 'value')
+                .attr('x', d => x(d.source) + x.bandwidth() / 2)
+                .attr('y', d => y(d.count) - 5)
+                .attr('text-anchor', 'middle')
+                .style('font-size', '14px')
+                .style('font-weight', 'bold')
+                .style('fill', '#374151')
+                .text(d => d.count);
+
+            // Add X axis
+            svg.append('g')
+                .attr('transform', `translate(0,${height})`)
+                .call(d3.axisBottom(x))
+                .selectAll('text')
+                .style('text-transform', 'capitalize');
+
+            // Add Y axis
+            svg.append('g')
+                .call(d3.axisLeft(y));
+        }
+
+        // D3.js LINE Chart - Jobs Today Timeline
+        function drawTimelineChart(data) {
+            const container = document.getElementById('timeline-chart');
+            container.innerHTML = '';
+            
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div class="flex items-center justify-center h-full text-gray-500">No data for today yet</div>';
+                return;
+            }
+
+            const margin = {top: 20, right: 30, bottom: 40, left: 60};
+            const width = container.offsetWidth - margin.left - margin.right;
+            const height = 300 - margin.top - margin.bottom;
+
+            const svg = d3.select('#timeline-chart')
+                .append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom)
+                .append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            // Parse times
+            const parseTime = d3.timeParse("%H");
+            data.forEach(d => {
+                d.hour = parseTime(d.hour);
+            });
+
+            const x = d3.scaleTime()
+                .domain(d3.extent(data, d => d.hour))
+                .range([0, width]);
+
+            const y = d3.scaleLinear()
+                .domain([0, d3.max(data, d => d.count) || 10])
+                .range([height, 0]);
+
+            // Add line
+            const line = d3.line()
+                .x(d => x(d.hour))
+                .y(d => y(d.count))
+                .curve(d3.curveMonotoneX);
+
+            svg.append('path')
+                .datum(data)
+                .attr('fill', 'none')
+                .attr('stroke', '#3B82F6')
+                .attr('stroke-width', 3)
+                .attr('d', line);
+
+            // Add dots
+            svg.selectAll('circle')
+                .data(data)
+                .enter()
+                .append('circle')
+                .attr('cx', d => x(d.hour))
+                .attr('cy', d => y(d.count))
+                .attr('r', 5)
+                .attr('fill', '#3B82F6');
+
+            // Add value labels
+            svg.selectAll('text.label')
+                .data(data)
+                .enter()
+                .append('text')
+                .attr('class', 'label')
+                .attr('x', d => x(d.hour))
+                .attr('y', d => y(d.count) - 10)
+                .attr('text-anchor', 'middle')
+                .style('font-size', '12px')
+                .style('fill', '#374151')
+                .text(d => d.count);
+
+            // Add X axis
+            svg.append('g')
+                .attr('transform', `translate(0,${height})`)
+                .call(d3.axisBottom(x).tickFormat(d3.timeFormat("%H:00")));
+
+            // Add Y axis
+            svg.append('g')
+                .call(d3.axisLeft(y));
+
+            // Add grid lines
+            svg.append('g')
+                .attr('class', 'grid')
+                .call(d3.axisLeft(y).tickSize(-width).tickFormat(''))
+                .style('stroke-dasharray', '3,3')
+                .style('opacity', 0.1);
+        }
 
         // Load Statistics
         async function loadStatistics() {
@@ -268,6 +459,18 @@
                 document.getElementById('total-jobs').textContent = data.total_jobs || 0;
                 document.getElementById('new-today').textContent = data.new_today || 0;
                 document.getElementById('notifications-sent').textContent = data.notifications_sent || 0;
+
+                // Bar chart data
+                const chartData = [
+                    { source: 'adzuna', count: data.jobs_by_source?.adzuna || 0 },
+                    { source: 'marocannonces', count: data.jobs_by_source?.marocannonces || 0 },
+                    { source: 'anapec', count: data.jobs_by_source?.anapec || 0 }
+                ];
+                drawChart(chartData);
+
+                // Timeline data
+                const timelineData = data.jobs_today_timeline || [];
+                drawTimelineChart(timelineData);
             } catch (error) {
                 console.error('Error loading statistics:', error);
             }
@@ -288,7 +491,7 @@
                                 <div class="flex-1">
                                     <h3 class="font-medium text-gray-900">${alert.keyword}</h3>
                                     <p class="text-sm text-gray-600 mt-1">
-                                        ${alert.location || 'All Morocco'} • ${alert.user_name}
+                                        ${alert.location || 'All Locations'} • ${alert.user_name}
                                     </p>
                                     <p class="text-xs text-gray-500 mt-1">
                                         Created: ${new Date(alert.created_at).toLocaleDateString()}
@@ -315,44 +518,53 @@
             }
         }
 
-        // Load Recent Jobs with Pagination
+        // Load Recent Jobs as TABLE
         async function loadRecentJobs(page = 1) {
             try {
                 const response = await fetch(`${API_URL}/jobs?page=${page}`);
                 const data = await response.json();
                 
-                const jobsList = document.getElementById('jobs-list');
+                const jobsTbody = document.getElementById('jobs-tbody');
                 const pagination = document.getElementById('pagination');
                 
                 if (data.data && data.data.length > 0) {
-                    jobsList.innerHTML = data.data.map(job => `
-                        <div class="border rounded-lg p-4 hover:border-blue-300 transition">
-                            <div class="flex justify-between items-start">
-                                <div class="flex-1">
-                                    <h3 class="font-medium text-gray-900">${job.title}</h3>
-                                    <p class="text-sm text-gray-600 mt-1">${job.company} • ${job.location}</p>
-                                    <div class="flex items-center space-x-2 mt-2">
-                                        <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                            ${job.job_type || 'Not specified'}
-                                        </span>
-                                        <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                                            ${job.source}
-                                        </span>
-                                        ${job.salary ? `<span class="text-xs text-gray-600">${job.salary}</span>` : ''}
-                                    </div>
-                                    <p class="text-xs text-gray-500 mt-2">
-                                        Posted: ${new Date(job.created_at).toLocaleDateString()}
-                                    </p>
-                                </div>
-                                <a href="${job.url}" target="_blank" 
-                                   class="ml-4 inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                                    View Job
+                    jobsTbody.innerHTML = data.data.map(job => `
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm font-medium text-gray-900">${job.title}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900">${job.company}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-500">${job.location}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                    ${job.job_type || 'N/A'}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                    job.source === 'adzuna' ? 'bg-blue-100 text-blue-800' :
+                                    job.source === 'marocannonces' ? 'bg-green-100 text-green-800' :
+                                    job.source === 'anapec' ? 'bg-purple-100 text-purple-800' :
+                                    'bg-gray-100 text-gray-800'
+                                }">
+                                    ${job.source}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                ${new Date(job.created_at).toLocaleDateString()}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <a href="${job.url}" target="_blank" class="text-blue-600 hover:text-blue-900">
+                                    View
                                 </a>
-                            </div>
-                        </div>
+                            </td>
+                        </tr>
                     `).join('');
 
-                    // Show pagination if more than 1 page
                     if (data.last_page > 1) {
                         pagination.style.display = 'flex';
                         updatePagination(data);
@@ -360,7 +572,13 @@
                         pagination.style.display = 'none';
                     }
                 } else {
-                    jobsList.innerHTML = '<div class="text-center py-8 text-gray-500"><p>No jobs scraped yet. Create an alert to start!</p></div>';
+                    jobsTbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">
+                                No jobs scraped yet. Create an alert to start!
+                            </td>
+                        </tr>
+                    `;
                     pagination.style.display = 'none';
                 }
             } catch (error) {
@@ -430,7 +648,7 @@
                 keyword: formData.get('keyword'),
                 location: formData.get('location') || null,
                 job_types: formData.getAll('job_types[]'),
-                sources: ['rekrute', 'emploi', 'mjob']
+                sources: formData.getAll('sources[]')
             };
             
             try {
@@ -452,15 +670,11 @@
                     messageDiv.innerHTML = '<p class="text-sm text-green-800">Alert created successfully! You will receive WhatsApp notifications.</p>';
                     messageDiv.classList.remove('hidden');
                     
-                    // Reset form
                     e.target.reset();
-                    
-                    // Reload data
                     loadStatistics();
                     loadAlerts();
                     loadRecentJobs(1);
                     
-                    // Hide message after 5 seconds
                     setTimeout(() => {
                         messageDiv.classList.add('hidden');
                     }, 5000);
@@ -507,12 +721,17 @@
             loadAlerts();
             loadRecentJobs(1);
             
-            // Refresh data every 30 seconds
             setInterval(() => {
                 loadStatistics();
                 loadAlerts();
             }, 30000);
         });
+
+        // Redraw charts on window resize
+        window.addEventListener('resize', () => {
+            loadStatistics();
+        });
     </script>
 </body>
 </html>
+

@@ -53,7 +53,8 @@ class JobAlert extends Model
      */
     public function getSourcesToScrape(): array
     {
-        return $this->sources ?? ['adzuna'];
+        // Return all sources, or default to all 3 working sources
+        return $this->sources ?? ['adzuna', 'marocannonces', 'anapec'];
     }
 
     /**

@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote')->hourly();
+})->purpose('Display an inspiring quote');
 
-Schedule::command('job:scrape')->hourly();
+// Schedule job scraping every hour
+Schedule::command('job:scrape')->everyFiveMinutes();

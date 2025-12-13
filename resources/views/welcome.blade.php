@@ -3,16 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moroccan Job Scraper</title>
+    <title>Job Scraper</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body class="bg-gray-50">
     <!-- Header -->
     <header class="bg-white shadow">
         <div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-            <h1 class="text-3xl font-bold text-gray-900">Moroccan Job Scraper</h1>
-            <p class="mt-1 text-sm text-gray-600">Free WhatsApp job alerts from Adzuna API</p>
+            <h1 class="text-3xl font-bold text-gray-900">Job Scraper Dashboard</h1>
+            <p class="mt-1 text-sm text-gray-600">Free WhatsApp job alerts powered by AI</p>
         </div>
     </header>
 
@@ -22,7 +23,7 @@
         <!-- Statistics Cards -->
         <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
             <!-- Total Alerts -->
-            <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition">
                 <div class="p-5">
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
@@ -41,7 +42,7 @@
             </div>
 
             <!-- Total Jobs -->
-            <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition">
                 <div class="p-5">
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
@@ -60,7 +61,7 @@
             </div>
 
             <!-- New Jobs Today -->
-            <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition">
                 <div class="p-5">
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
@@ -79,7 +80,7 @@
             </div>
 
             <!-- Notifications Sent -->
-            <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition">
                 <div class="p-5">
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
@@ -96,6 +97,12 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- D3.js Chart - Jobs by Source -->
+        <div class="bg-white shadow rounded-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Jobs Distribution by Source</h2>
+            <div id="jobs-chart" class="w-full" style="height: 300px;"></div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -130,15 +137,34 @@
                     <!-- Keyword -->
                     <div>
                         <label for="keyword" class="block text-sm font-medium text-gray-700">Job Keyword</label>
-                        <input type="text" id="keyword" name="keyword" placeholder="e.g., Developer" required
+                        <input type="text" id="keyword" name="keyword" placeholder="e.g., Laravel Developer" required
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-3 py-2 border">
                     </div>
 
                     <!-- Location -->
                     <div>
                         <label for="location" class="block text-sm font-medium text-gray-700">Location (Optional)</label>
-                        <input type="text" id="location" name="location" placeholder="e.g., Morocco"
+                        <input type="text" id="location" name="location" placeholder="e.g., Casablanca"
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-3 py-2 border">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Job Sources</label>
+                        <div class="space-y-2">
+                            <label class="flex items-center">
+                                <input type="checkbox" name="sources[]" value="adzuna" checked class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                <span class="ml-2 text-sm text-gray-700">Adzuna (International)</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="sources[]" value="marocannonces" checked class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                <span class="ml-2 text-sm text-gray-700">Marocannonces (Morocco)</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="sources[]" value="anapec" checked class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                <span class="ml-2 text-sm text-gray-700">ANAPEC (Government)</span>
+                            </label>
+                        </div>
+                        <p class="mt-1 text-xs text-gray-500">Select at least one source</p>
                     </div>
 
                     <!-- Job Types -->
@@ -146,7 +172,7 @@
                         <label class="block text-sm font-medium text-gray-700 mb-2">Job Types (Optional)</label>
                         <div class="space-y-2">
                             <label class="inline-flex items-center mr-4">
-                                <input type="checkbox" name="job_types[]" value="CDI" checked class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                <input type="checkbox" name="job_types[]" value="CDI" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
                                 <span class="ml-2 text-sm text-gray-700">CDI</span>
                             </label>
                             <label class="inline-flex items-center mr-4">
@@ -191,22 +217,35 @@
 
         </div>
 
-        <!-- Recent Jobs with Pagination -->
+        <!-- Recent Jobs TABLE -->
         <div class="mt-8 bg-white shadow rounded-lg p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-semibold text-gray-900">Recent Jobs</h2>
-                <span id="jobs-count" class="text-sm text-gray-600"></span>
-            </div>
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Recent Jobs</h2>
             
-            <div id="jobs-list" class="space-y-4">
-                <!-- Jobs will be loaded here -->
-                <div class="text-center py-8 text-gray-500">
-                    <p>No jobs scraped yet. Create an alert to start!</p>
-                </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200" id="jobs-table">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posted</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="jobs-tbody" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">
+                                No jobs scraped yet. Create an alert to start!
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
             <!-- Pagination -->
-            <nav class="flex items-center justify-between border-t border-gray-200 pt-4 mt-6" id="pagination-container" style="display: none;">
+            <nav class="flex items-center justify-between border-t border-gray-200 pt-4 mt-6" id="pagination" style="display: none;">
                 <div class="flex-1 flex justify-between sm:hidden">
                     <button id="prev-mobile" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                         Previous
@@ -222,8 +261,7 @@
                         </p>
                     </div>
                     <div>
-                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" id="page-buttons">
-                        </nav>
+                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" id="page-numbers"></nav>
                     </div>
                 </div>
             </nav>
@@ -235,15 +273,87 @@
     <footer class="bg-white border-t mt-12">
         <div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
             <p class="text-center text-gray-500 text-sm">
-                Moroccan Job Scraper - FREE WhatsApp Notifications
+                Job Scraper - FREE WhatsApp Notifications - Powered by Adzuna, Marocannonces & ANAPEC
             </p>
         </div>
     </footer>
 
     <!-- JavaScript -->
     <script>
+        // API Base URL
         const API_URL = '/api/v1';
+        let currentPage = 1;
+        let jobsData = [];
 
+        // D3.js Chart Function
+        function drawChart(data) {
+            const container = document.getElementById('jobs-chart');
+            container.innerHTML = '';
+            
+            const margin = {top: 20, right: 30, bottom: 40, left: 60};
+            const width = container.offsetWidth - margin.left - margin.right;
+            const height = 300 - margin.top - margin.bottom;
+
+            const svg = d3.select('#jobs-chart')
+                .append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom)
+                .append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            const x = d3.scaleBand()
+                .range([0, width])
+                .domain(data.map(d => d.source))
+                .padding(0.2);
+
+            const y = d3.scaleLinear()
+                .domain([0, d3.max(data, d => d.count)])
+                .range([height, 0]);
+
+            // Add bars
+            svg.selectAll('rect')
+                .data(data)
+                .enter()
+                .append('rect')
+                .attr('x', d => x(d.source))
+                .attr('y', d => y(d.count))
+                .attr('width', x.bandwidth())
+                .attr('height', d => height - y(d.count))
+                .attr('fill', d => {
+                    if (d.source === 'adzuna') return '#3B82F6';
+                    if (d.source === 'marocannonces') return '#10B981';
+                    if (d.source === 'anapec') return '#8B5CF6';
+                    return '#6B7280';
+                })
+                .attr('rx', 4);
+
+            // Add value labels on bars
+            svg.selectAll('text.value')
+                .data(data)
+                .enter()
+                .append('text')
+                .attr('class', 'value')
+                .attr('x', d => x(d.source) + x.bandwidth() / 2)
+                .attr('y', d => y(d.count) - 5)
+                .attr('text-anchor', 'middle')
+                .style('font-size', '14px')
+                .style('font-weight', 'bold')
+                .style('fill', '#374151')
+                .text(d => d.count);
+
+            // Add X axis
+            svg.append('g')
+                .attr('transform', `translate(0,${height})`)
+                .call(d3.axisBottom(x))
+                .selectAll('text')
+                .style('text-transform', 'capitalize');
+
+            // Add Y axis
+            svg.append('g')
+                .call(d3.axisLeft(y));
+        }
+
+        // Load Statistics
         async function loadStatistics() {
             try {
                 const response = await fetch(`${API_URL}/jobs/statistics`);
@@ -253,11 +363,21 @@
                 document.getElementById('total-jobs').textContent = data.total_jobs || 0;
                 document.getElementById('new-today').textContent = data.new_today || 0;
                 document.getElementById('notifications-sent').textContent = data.notifications_sent || 0;
+
+                // Prepare chart data
+                const chartData = [
+                    { source: 'adzuna', count: data.jobs_by_source?.adzuna || 0 },
+                    { source: 'marocannonces', count: data.jobs_by_source?.marocannonces || 0 },
+                    { source: 'anapec', count: data.jobs_by_source?.anapec || 0 }
+                ];
+                
+                drawChart(chartData);
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error loading statistics:', error);
             }
         }
 
+        // Load Alerts
         async function loadAlerts() {
             try {
                 const response = await fetch(`${API_URL}/alerts`);
@@ -272,117 +392,109 @@
                                 <div class="flex-1">
                                     <h3 class="font-medium text-gray-900">${alert.keyword}</h3>
                                     <p class="text-sm text-gray-600 mt-1">
-                                        ${alert.location || 'All locations'} - ${alert.user_name}
+                                        ${alert.location || 'All Locations'} • ${alert.user_name}
                                     </p>
                                     <p class="text-xs text-gray-500 mt-1">
                                         Created: ${new Date(alert.created_at).toLocaleDateString()}
                                     </p>
                                 </div>
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${alert.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
-                                    ${alert.is_active ? 'Active' : 'Inactive'}
-                                </span>
+                                <div class="flex items-center space-x-2">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${alert.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
+                                        ${alert.is_active ? 'Active' : 'Inactive'}
+                                    </span>
+                                    <button onclick="deleteAlert(${alert.id})" class="text-red-600 hover:text-red-800">
+                                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     `).join('');
                 } else {
-                    alertsList.innerHTML = '<div class="text-center py-8 text-gray-500"><p>No alerts yet</p></div>';
+                    alertsList.innerHTML = '<div class="text-center py-8 text-gray-500"><p>No alerts yet. Create your first alert!</p></div>';
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error loading alerts:', error);
             }
         }
 
+        // Load Recent Jobs as TABLE
         async function loadRecentJobs(page = 1) {
             try {
                 const response = await fetch(`${API_URL}/jobs?page=${page}`);
                 const data = await response.json();
                 
-                const jobsList = document.getElementById('jobs-list');
-                const paginationContainer = document.getElementById('pagination-container');
+                const jobsTbody = document.getElementById('jobs-tbody');
+                const pagination = document.getElementById('pagination');
                 
                 if (data.data && data.data.length > 0) {
-                    jobsList.innerHTML = data.data.map(job => `
-                        <div class="border rounded-lg p-4 hover:border-blue-300 transition">
-                            <div class="flex justify-between items-start">
-                                <div class="flex-1">
-                                    <h3 class="font-medium text-gray-900">${job.title}</h3>
-                                    <p class="text-sm text-gray-600 mt-1">${job.company} - ${job.location}</p>
-                                    <div class="flex items-center space-x-2 mt-2">
-                                        <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                            ${job.job_type || 'Not specified'}
-                                        </span>
-                                        <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                                            ${job.source}
-                                        </span>
-                                        ${job.salary ? `<span class="text-xs text-gray-600">${job.salary}</span>` : ''}
-                                    </div>
-                                    <p class="text-xs text-gray-500 mt-2">
-                                        Posted: ${new Date(job.posted_date).toLocaleDateString()}
-                                    </p>
-                                </div>
-                                <a href="${job.url}" target="_blank" 
-                                   class="ml-4 inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                                    View Job
+                    jobsTbody.innerHTML = data.data.map(job => `
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm font-medium text-gray-900">${job.title}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900">${job.company}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-500">${job.location}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                    ${job.job_type || 'N/A'}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                    job.source === 'adzuna' ? 'bg-blue-100 text-blue-800' :
+                                    job.source === 'marocannonces' ? 'bg-green-100 text-green-800' :
+                                    job.source === 'anapec' ? 'bg-purple-100 text-purple-800' :
+                                    'bg-gray-100 text-gray-800'
+                                }">
+                                    ${job.source}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                ${new Date(job.created_at).toLocaleDateString()}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <a href="${job.url}" target="_blank" class="text-blue-600 hover:text-blue-900">
+                                    View
                                 </a>
-                            </div>
-                        </div>
+                            </td>
+                        </tr>
                     `).join('');
 
-                    document.getElementById('jobs-count').textContent = `Page ${data.current_page} of ${data.last_page}`;
-                    document.getElementById('from').textContent = data.from || 0;
-                    document.getElementById('to').textContent = data.to || 0;
-                    document.getElementById('total').textContent = data.total || 0;
-
+                    // Show pagination if more than 1 page
                     if (data.last_page > 1) {
-                        paginationContainer.style.display = 'flex';
+                        pagination.style.display = 'flex';
                         updatePagination(data);
                     } else {
-                        paginationContainer.style.display = 'none';
+                        pagination.style.display = 'none';
                     }
                 } else {
-                    jobsList.innerHTML = '<div class="text-center py-8 text-gray-500"><p>No jobs yet</p></div>';
-                    paginationContainer.style.display = 'none';
+                    jobsTbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">
+                                No jobs scraped yet. Create an alert to start!
+                            </td>
+                        </tr>
+                    `;
+                    pagination.style.display = 'none';
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error loading jobs:', error);
             }
         }
 
         function updatePagination(data) {
-            const pageButtons = document.getElementById('page-buttons');
-            let html = '';
-
-            html += `
-                <button onclick="loadRecentJobs(${data.current_page - 1})" 
-                        ${data.current_page === 1 ? 'disabled' : ''}
-                        class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50">
-                    Previous
-                </button>
-            `;
-
-            for (let i = 1; i <= data.last_page; i++) {
-                if (i === 1 || i === data.last_page || (i >= data.current_page - 2 && i <= data.current_page + 2)) {
-                    html += `
-                        <button onclick="loadRecentJobs(${i})"
-                                class="relative inline-flex items-center px-4 py-2 border text-sm font-medium ${i === data.current_page ? 'z-10 bg-blue-50 border-blue-500 text-blue-600' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}">
-                            ${i}
-                        </button>
-                    `;
-                } else if (i === data.current_page - 3 || i === data.current_page + 3) {
-                    html += '<span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">...</span>';
-                }
-            }
-
-            html += `
-                <button onclick="loadRecentJobs(${data.current_page + 1})"
-                        ${data.current_page === data.last_page ? 'disabled' : ''}
-                        class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50">
-                    Next
-                </button>
-            `;
-
-            pageButtons.innerHTML = html;
-
+            currentPage = data.current_page;
+            
+            document.getElementById('from').textContent = data.from || 0;
+            document.getElementById('to').textContent = data.to || 0;
+            document.getElementById('total').textContent = data.total || 0;
+            
             const prevMobile = document.getElementById('prev-mobile');
             const nextMobile = document.getElementById('next-mobile');
             
@@ -391,24 +503,54 @@
             
             nextMobile.disabled = data.current_page === data.last_page;
             nextMobile.onclick = () => loadRecentJobs(data.current_page + 1);
+            
+            const pageNumbers = document.getElementById('page-numbers');
+            let html = '';
+            
+            html += `
+                <button onclick="loadRecentJobs(${data.current_page - 1})" 
+                        ${data.current_page === 1 ? 'disabled' : ''}
+                        class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50">
+                    Previous
+                </button>
+            `;
+            
+            const start = Math.max(1, data.current_page - 2);
+            const end = Math.min(data.last_page, data.current_page + 2);
+            
+            for (let i = start; i <= end; i++) {
+                html += `
+                    <button onclick="loadRecentJobs(${i})"
+                            class="relative inline-flex items-center px-4 py-2 border text-sm font-medium ${i === data.current_page ? 'z-10 bg-blue-50 border-blue-500 text-blue-600' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}">
+                        ${i}
+                    </button>
+                `;
+            }
+            
+            html += `
+                <button onclick="loadRecentJobs(${data.current_page + 1})"
+                        ${data.current_page === data.last_page ? 'disabled' : ''}
+                        class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50">
+                    Next
+                </button>
+            `;
+            
+            pageNumbers.innerHTML = html;
         }
 
+        // Create Alert
         document.getElementById('create-alert-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const formData = new FormData(e.target);
-            
-            // Get selected job types
-            const jobTypes = formData.getAll('job_types[]');
-            
             const data = {
                 user_name: formData.get('user_name'),
                 user_email: formData.get('user_email'),
                 user_phone: formData.get('user_phone'),
                 keyword: formData.get('keyword'),
                 location: formData.get('location') || null,
-                job_types: jobTypes.length > 0 ? jobTypes : ['CDI'],
-                sources: ['adzuna']
+                job_types: formData.getAll('job_types[]'),
+                sources: formData.getAll('sources[]')
             };
             
             try {
@@ -422,41 +564,79 @@
                 });
                 
                 const result = await response.json();
+                
                 const messageDiv = document.getElementById('form-message');
                 
                 if (response.ok) {
                     messageDiv.className = 'p-4 rounded-md bg-green-50 border border-green-200';
-                    messageDiv.innerHTML = '<p class="text-sm text-green-800">Alert created! You will receive WhatsApp notifications.</p>';
+                    messageDiv.innerHTML = '<p class="text-sm text-green-800">✅ Alert created successfully! You will receive WhatsApp notifications.</p>';
                     messageDiv.classList.remove('hidden');
                     
+                    // Reset form
                     e.target.reset();
-                    // Re-check CDI by default
-                    document.querySelector('input[value="CDI"]').checked = true;
                     
+                    // Reload data
                     loadStatistics();
                     loadAlerts();
                     loadRecentJobs(1);
                     
-                    setTimeout(() => messageDiv.classList.add('hidden'), 5000);
+                    // Hide message after 5 seconds
+                    setTimeout(() => {
+                        messageDiv.classList.add('hidden');
+                    }, 5000);
                 } else {
                     messageDiv.className = 'p-4 rounded-md bg-red-50 border border-red-200';
-                    messageDiv.innerHTML = `<p class="text-sm text-red-800">Error: ${result.message || 'Failed'}</p>`;
+                    messageDiv.innerHTML = `<p class="text-sm text-red-800">❌ Error: ${result.message || 'Failed to create alert'}</p>`;
                     messageDiv.classList.remove('hidden');
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error creating alert:', error);
+                const messageDiv = document.getElementById('form-message');
+                messageDiv.className = 'p-4 rounded-md bg-red-50 border border-red-200';
+                messageDiv.innerHTML = '<p class="text-sm text-red-800">❌ Network error. Please try again.</p>';
+                messageDiv.classList.remove('hidden');
             }
         });
 
+        // Delete Alert
+        async function deleteAlert(id) {
+            if (!confirm('Are you sure you want to delete this alert?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/alerts/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    loadStatistics();
+                    loadAlerts();
+                } else {
+                    alert('Failed to delete alert');
+                }
+            } catch (error) {
+                console.error('Error deleting alert:', error);
+                alert('Network error. Please try again.');
+            }
+        }
+
+        // Load data on page load
         document.addEventListener('DOMContentLoaded', () => {
             loadStatistics();
             loadAlerts();
             loadRecentJobs(1);
             
+            // Refresh data every 30 seconds
             setInterval(() => {
                 loadStatistics();
                 loadAlerts();
             }, 30000);
+        });
+
+        // Redraw chart on window resize
+        window.addEventListener('resize', () => {
+            loadStatistics(); // Will redraw chart
         });
     </script>
 </body>

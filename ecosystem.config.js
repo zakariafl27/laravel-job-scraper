@@ -2,13 +2,10 @@ module.exports = {
   apps: [
     {
       name: 'whatsapp-service',
-      script: 'whatsapp-service/server.js',
+      script: './whatsapp-service/server.js',
       instances: 1,
-      exec_mode: 'fork',
       autorestart: true,
-      max_memory_restart: '500M',
-      error_file: './storage/logs/whatsapp-error.log',
-      out_file: './storage/logs/whatsapp-out.log'
+      max_memory_restart: '500M'
     },
     {
       name: 'laravel-queue',

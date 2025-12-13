@@ -3,42 +3,23 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Jobs\ScrapeJobsForAlert;
 use App\Models\JobAlert;
-use Illuminate\Http\JsonResponse;
+use App\Jobs\ScrapeJobsForAlert;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class JobAlertController extends Controller
 {
-    /**
-     * Display a listing of job alerts.
-     */
-    public function index(Request $request): JsonResponse
+    public function index()
     {
-        $query = JobAlert::query();
-
-        // Filter by active status
-        if ($request->has('is_active')) {
-            $query->where('is_active', $request->boolean('is_active'));
-        }
-
-        // Filter by user
-        if ($request->has('user_email')) {
-            $query->where('user_email', $request->user_email);
-        }
-
-        $alerts = $query->with(['jobs' => function ($q) {
-            $q->orderBy('job_listings.created_at', 'desc')->limit(5);
-        }])->paginate(15);
-
+        $alerts = JobAlert::with('jobs')
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+        
         return response()->json($alerts);
     }
 
-    /**
-     * Store a newly created job alert.
-     */
-    public function store(Request $request): JsonResponse
+    public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'user_name' => 'required|string|max:255',
@@ -47,122 +28,83 @@ class JobAlertController extends Controller
             'keyword' => 'required|string|max:255',
             'location' => 'nullable|string|max:255',
             'job_types' => 'nullable|array',
-            'job_types.*' => 'string',
+            'job_types.*' => 'in:CDI,CDD,Stage,Freelance,Temps partiel',
             'sources' => 'nullable|array',
-            'sources.*' => 'in:rekrute,emploi,mjob,anapec',
+            'sources.*' => 'in:rekrute,emploi,mjob,adzuna,bayt',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors(),
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
             ], 422);
         }
 
-        $alert = JobAlert::create($validator->validated());
+        $alert = JobAlert::create([
+            'user_name' => $request->user_name,
+            'user_email' => $request->user_email,
+            'user_phone' => $request->user_phone,
+            'keyword' => $request->keyword,
+            'location' => $request->location,
+            'job_types' => $request->job_types ?? [],
+            'sources' => $request->sources ?? ['adzuna'],
+            'is_active' => true,
+        ]);
 
-        // Dispatch immediate scrape job
         ScrapeJobsForAlert::dispatch($alert);
 
         return response()->json([
             'success' => true,
-            'message' => 'Job alert created successfully',
-            'data' => $alert,
+            'message' => 'Alert created successfully! Scraping jobs now...',
+            'data' => $alert
         ], 201);
     }
 
-    /**
-     * Display the specified job alert.
-     */
-    public function show(JobAlert $alert): JsonResponse
+    public function show($id)
     {
-        $alert->load(['jobs' => function ($q) {
-            $q->latest()->limit(20);
-        }]);
-
-        return response()->json([
-            'success' => true,
-            'data' => $alert,
-        ]);
+        $alert = JobAlert::with('jobs')->findOrFail($id);
+        return response()->json($alert);
     }
 
-    /**
-     * Update the specified job alert.
-     */
-    public function update(Request $request, JobAlert $alert): JsonResponse
+    public function update(Request $request, $id)
     {
+        $alert = JobAlert::findOrFail($id);
+        
         $validator = Validator::make($request->all(), [
-            'user_name' => 'sometimes|string|max:255',
-            'user_email' => 'sometimes|email|max:255',
-            'user_phone' => 'sometimes|string|max:20',
-            'keyword' => 'sometimes|string|max:255',
+            'user_name' => 'string|max:255',
+            'user_email' => 'email|max:255',
+            'user_phone' => 'string|max:20',
+            'keyword' => 'string|max:255',
             'location' => 'nullable|string|max:255',
             'job_types' => 'nullable|array',
-            'job_types.*' => 'string',
             'sources' => 'nullable|array',
-            'sources.*' => 'in:rekrute,emploi,mjob,anapec',
-            'is_active' => 'sometimes|boolean',
+            'is_active' => 'boolean',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors(),
+                'errors' => $validator->errors()
             ], 422);
         }
 
-        $alert->update($validator->validated());
+        $alert->update($request->all());
 
         return response()->json([
             'success' => true,
-            'message' => 'Job alert updated successfully',
-            'data' => $alert,
+            'data' => $alert
         ]);
     }
 
-    /**
-     * Remove the specified job alert.
-     */
-    public function destroy(JobAlert $alert): JsonResponse
+    public function destroy($id)
     {
+        $alert = JobAlert::findOrFail($id);
         $alert->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Job alert deleted successfully',
-        ]);
-    }
-
-    /**
-     * Trigger manual scrape for an alert.
-     */
-    public function scrape(JobAlert $alert): JsonResponse
-    {
-        if (!$alert->is_active) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Cannot scrape inactive alert',
-            ], 400);
-        }
-
-        ScrapeJobsForAlert::dispatch($alert);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Scrape job dispatched successfully',
-        ]);
-    }
-
-    /**
-     * Get new jobs for an alert.
-     */
-    public function newJobs(JobAlert $alert): JsonResponse
-    {
-        $newJobs = $alert->newJobs()->paginate(20);
-
-        return response()->json([
-            'success' => true,
-            'data' => $newJobs,
+            'message' => 'Alert deleted successfully'
         ]);
     }
 }

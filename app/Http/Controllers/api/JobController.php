@@ -4,49 +4,58 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Job;
-use Illuminate\Http\JsonResponse;
+use App\Models\JobAlert;
 use Illuminate\Http\Request;
 
 class JobController extends Controller
 {
-    /**
-     * Display a listing of jobs
-     */
-    public function index(Request $request): JsonResponse
+    public function index(Request $request)
     {
-        $limit = $request->get('limit', 15);
+        $perPage = $request->input('per_page', 15);
         
-        $jobs = Job::query()
+        $jobs = Job::with('alerts')
             ->latest()
-            ->paginate($limit);
+            ->paginate($perPage);
 
         return response()->json($jobs);
     }
 
-    /**
-     * Get job statistics
-     */
-    public function statistics(): JsonResponse
+    public function statistics()
     {
-        $stats = [
-            'total_alerts' => \App\Models\JobAlert::count(),
-            'active_alerts' => \App\Models\JobAlert::where('is_active', true)->count(),
-            'total_jobs' => Job::count(),
-            'new_today' => Job::whereDate('created_at', today())->count(),
-            'notifications_sent' => \App\Models\JobAlert::whereNotNull('last_scraped_at')->count(),
-            'jobs_by_source' => Job::groupBy('source')
-                ->selectRaw('source, count(*) as count')
-                ->pluck('count', 'source')
+        $totalJobs = Job::count();
+        $newToday = Job::whereDate('created_at', today())->count();
+        $totalAlerts = JobAlert::where('is_active', true)->count();
+        
+        $notificationsSent = Job::whereHas('alerts', function($query) {
+            $query->where('is_notified', true);
+        })->count();
+
+        $jobsBySource = [
+            'adzuna' => Job::where('source', 'adzuna')->count(),
+            'marocannonces' => Job::where('source', 'marocannonces')->count(),
+            'anapec' => Job::where('source', 'anapec')->count(),
         ];
 
-        return response()->json($stats);
-    }
+        // Jobs today timeline (by hour)
+        $jobsTodayTimeline = Job::selectRaw('EXTRACT(HOUR FROM created_at) as hour, COUNT(*) as count')
+            ->whereDate('created_at', today())
+            ->groupBy('hour')
+            ->orderBy('hour')
+            ->get()
+            ->map(function($item) {
+                return [
+                    'hour' => str_pad($item->hour, 2, '0', STR_PAD_LEFT),
+                    'count' => $item->count
+                ];
+            });
 
-    /**
-     * Display the specified job
-     */
-    public function show(Job $job): JsonResponse
-    {
-        return response()->json($job);
+        return response()->json([
+            'total_jobs' => $totalJobs,
+            'new_today' => $newToday,
+            'total_alerts' => $totalAlerts,
+            'notifications_sent' => $notificationsSent,
+            'jobs_by_source' => $jobsBySource,
+            'jobs_today_timeline' => $jobsTodayTimeline
+        ]);
     }
 }

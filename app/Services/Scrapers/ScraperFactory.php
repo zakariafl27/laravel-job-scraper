@@ -2,41 +2,29 @@
 
 namespace App\Services\Scrapers;
 
-use InvalidArgumentException;
-
 class ScraperFactory
 {
-    public static function create(string $name): ScraperInterface
+    public static function make(string $source): ?ScraperInterface
     {
-        return match(strtolower($name)) {
+        return match ($source) {
+            'adzuna' => new AdzunaScraper(),
+            'marocannonces' => new MarocannoncesScraper(),
+            'anapec' => new AnapecScraper(),
             'rekrute' => new RekruteScraper(),
             'emploi' => new EmploiScraper(),
             'mjob' => new MJobScraper(),
             'bayt' => new BaytScraper(),
-            default => throw new InvalidArgumentException("Scraper '{$name}' not found")
+            'novojob' => new NovoJobScraper(),
+            default => null,
         };
     }
 
-    public static function getAllScrapers(): array
+    public static function getAvailableSources(): array
     {
         return [
-            'rekrute' => self::create('rekrute'),
-            'emploi' => self::create('emploi'),
-            'mjob' => self::create('mjob'),
-            'bayt' => self::create('bayt'),
+            'adzuna',
+            'marocannonces',
+            'anapec',
         ];
-    }
-
-    public static function getScrapers(array $names): array
-    {
-        $scrapers = [];
-        foreach ($names as $name) {
-            try {
-                $scrapers[$name] = self::create($name);
-            } catch (InvalidArgumentException $e) {
-                // Skip
-            }
-        }
-        return $scrapers;
     }
 }
